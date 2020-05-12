@@ -6,6 +6,22 @@
 #include <Wire.h>
 #include <Servo.h>
 
+//custom
+//每位量測體溫的使用者至少要間隔多久(ms)
+const int interval_measure_timer = 15000;
+//量測的ms數
+const int measure_timer = 8000;
+//模組量測出的溫度, 需要再加多少
+const float adjust_temp = 1.75;
+//量完溫度後, 顯示溫度幾秒後, 才清空
+const int temperature_display = 1000;
+//量測管轉動的速度()愈大愈慢
+const int servo_move_speed = 10;
+//量測管每次移動的距離(愈小愈慢)
+const int move_unit = 1;
+//量測管移動到量測點的角度
+const int measure_angle = 95;
+
 //servo
 const int pinServo = 9;
 Servo myservo;
@@ -22,7 +38,6 @@ const int pirPin = 8;
 
 //MLX90614
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
-int measure_timer = 8000;
 
 void empty_oled() {
   display.setCursor(0, 0);
@@ -31,7 +46,7 @@ void empty_oled() {
   display.print(" sleep");
   display.display();
   display.clearDisplay();
-  delay(1500);
+  delay(1000);
   
   display.setCursor(0, 0);
   display.setTextColor(WHITE);
@@ -53,17 +68,17 @@ void welcome_oled() {
 
 float display_oled(float maxT) {
   float envTempe = mlx.readAmbientTempC();
-  float objTempe = mlx.readObjectTempC();
-  float adjust_temp = 1.25;
+  float objTempe = mlx.readObjectTempC();  
 
   objTempe = objTempe + adjust_temp;
+  /*
   Serial.print(" Temperature:");
   Serial.print(envTempe);
   Serial.print("/");
   Serial.print(objTempe);
   Serial.print("/");
   Serial.print(maxT);
-
+  */
   display.setTextSize(1);
   display.setTextColor(BLACK, WHITE);
   display.setCursor(0, 0);
@@ -83,10 +98,10 @@ float display_oled(float maxT) {
 void move_servo() {
   int pos = 0;
   myservo.write(0);
-  for (pos = 95; pos >= 0; pos -= 1)
+  for (pos = measure_angle; pos >= 0; pos -= move_unit)
   {
     myservo.write(pos);
-    delay(15);
+    delay(servo_move_speed);
   }
 
   unsigned long last_measure = millis();
@@ -98,10 +113,10 @@ void move_servo() {
     }
   }
 
-  for (pos = 0; pos <= 95; pos += 1)
+  for (pos = 0; pos <= measure_angle; pos += move_unit)
   {
     myservo.write(pos);
-    delay(15);
+    delay(servo_move_speed);
   }
 
 }
@@ -117,18 +132,19 @@ void setup() {
 
 void loop() {
   int valPIR = digitalRead(pirPin); //read PIR output
-
+  /*
   Serial.print("PIR:");
   Serial.print(valPIR);
   Serial.println();
   Serial.println(millis() - servo_lasttime);
+  */
   if (valPIR == 1) {
-    if (millis() - servo_lasttime > 15000) {
+    if (millis() - servo_lasttime > interval_measure_timer) {
       welcome_oled();
       servo_lasttime = millis();
       move_servo();
     }
-    delay(1000);
+    delay(temperature_display);
     empty_oled();
   }
 
